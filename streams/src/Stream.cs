@@ -4,7 +4,7 @@ namespace hhlogic.streams {
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using hhlogic.streams.implementation;
+using hhlogic.streams.internals;
 //======================================================================================================================
 
 

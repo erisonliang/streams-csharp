@@ -1,64 +1,75 @@
 ﻿//======================================================================================================================
-namespace hhlogic.streams.implementation {
+namespace hhlogic.streams.internals {
 //----------------------------------------------------------------------------------------------------------------------
 using System;
 //======================================================================================================================
 
 
 //======================================================================================================================
-public sealed class MergingMapStream<U, T> : AbstractFilterStream<T>
+public sealed class FlatMapStream<U, T> : AbstractStream<T>
 {
   //--------------------------------------------------------------------------------------------------------------------
   private readonly Stream<U> underlyingStream;
-  private readonly uint mergeSize;
-  private readonly Func<U[], T> mapper;
+  private readonly Stream<T> headStream;
+  private readonly Func<U, Stream<T>> mapper;
   //--------------------------------------------------------------------------------------------------------------------
-  public MergingMapStream(Stream<U> underlyingStream, uint mergeSize, Func<U[], T> mapper)
+  public FlatMapStream(Stream<U> underlyingStream, Func<U, Stream<T>> mapper)
   {
     this.underlyingStream = underlyingStream;
+    this.headStream = EmptyStream<T>.instance;
     this.mapper = mapper;
-    this.mergeSize = mergeSize;
+  }
+  //--------------------------------------------------------------------------------------------------------------------
+  public FlatMapStream(Stream<T> headStream, Stream<U> underlyingStream, Func<U, Stream<T>> mapper)
+  {
+    this.underlyingStream = underlyingStream;
+    this.headStream = headStream;
+    this.mapper = mapper;
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override bool forEachWhile(Predicate<T> f)
   {
-    if(mergeSize < 1u)
-      return true;
-
-    var values = new U[mergeSize];
-    uint i = 0u;
-
-    return underlyingStream.forEachWhile(m =>
-    {
-      values[i++] = m;
-
-      if(i < mergeSize)
-        return true;
-
-      i = 0;
-      return f(mapper(values));
-    });
+    return headStream.forEachWhile(f) && underlyingStream.forEachWhile(m => mapper(m).forEachWhile(f));
+  }
+  //--------------------------------------------------------------------------------------------------------------------
+  public override uint count()
+  {
+    return headStream.count() + underlyingStream.reduce(0u, (sum, m) => sum + mapper(m).count());
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override Maybe<uint> fastCount()
   {
-    return underlyingStream.fastCount().map(i => i/mergeSize);
+    return Maybe<uint>.nothing;
+  }
+  //--------------------------------------------------------------------------------------------------------------------
+  public override Maybe<T> last()
+  {
+    var l = underlyingStream.last().flatMap(mapper).last();
+    return l.isPresent()? l : headStream.last();
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override Maybe<T> head()
   {
-    var values = underlyingStream.limit(mergeSize).toArray();
-    return values.Length == mergeSize? Maybe.of(mapper(values)) : Maybe<T>.nothing;
+    return next(headStream, underlyingStream).headStream.head();
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override Stream<T> tail()
   {
-    return next(mergeSize, underlyingStream.tail());
+    var n = next(headStream, underlyingStream);
+    return next(n.headStream.tail(), n.underlyingStream);
   }
   //--------------------------------------------------------------------------------------------------------------------
-  private Stream<T> next(uint i, Stream<U> underlying)
+  private FlatMapStream<U, T> next(Stream<T> headStream, Stream<U> underlying)
   {
-    return i > 1u? next(i - 1, underlying.tail()) : new MergingMapStream<U, T>(underlying, mergeSize, mapper);
+    var h = headStream.head();
+
+    if(h.isPresent())
+      return new FlatMapStream<U, T>(headStream, underlying, mapper);
+
+    var uh = underlying.head();
+
+    return uh.isNotPresent()? new FlatMapStream<U, T>(EmptyStream<T>.instance, EmptyStream<U>.instance, mapper)
+        : next(uh.flatMap(mapper), underlying.tail());
   }
   //--------------------------------------------------------------------------------------------------------------------
 }

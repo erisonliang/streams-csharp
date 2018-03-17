@@ -1,57 +1,62 @@
 ﻿//======================================================================================================================
-namespace hhlogic.streams.implementation {
+namespace hhlogic.streams.internals {
 //----------------------------------------------------------------------------------------------------------------------
 using System;
 //======================================================================================================================
 
 
 //======================================================================================================================
-public sealed class IntStream : AbstractStream<int>
+public sealed class FilterStream<T> : AbstractFilterStream<T>
 {
   //--------------------------------------------------------------------------------------------------------------------
-  private readonly int rangeStartInclusive;
-  private readonly int rangeEndExclusive;
+  private readonly Stream<T> underlyingStream;
+  private readonly Predicate<T> streamFilter;
   //--------------------------------------------------------------------------------------------------------------------
-  public IntStream(int rangeStartInclusive, int rangeEndExclusive)
+  public FilterStream(Stream<T> underlyingStream, Predicate<T> streamFilter)
   {
-    this.rangeStartInclusive = rangeStartInclusive < rangeEndExclusive? rangeStartInclusive : rangeEndExclusive;
-    this.rangeEndExclusive = rangeEndExclusive;
+    this.underlyingStream = underlyingStream;
+    this.streamFilter = streamFilter;
   }
   //--------------------------------------------------------------------------------------------------------------------
-  public override bool forEachWhile(Predicate<int> f)
+  public override bool forEachWhile(Predicate<T> f)
   {
-    for(int i = rangeStartInclusive; i < rangeEndExclusive; i++)
-      if(!f(i))
-        return false;
+    return underlyingStream.forEachWhile(i => streamFilter(i)? f(i) : true);
+  }
+  //--------------------------------------------------------------------------------------------------------------------
+  public override Maybe<T> head()
+  {
+    return nextHead(underlyingStream);
+  }
+  //--------------------------------------------------------------------------------------------------------------------
+  public override Stream<T> tail()
+  {
+    return new FilterStream<T>(nextTail(underlyingStream), streamFilter);
+  }
+  //--------------------------------------------------------------------------------------------------------------------
+  private Maybe<T> nextHead(Stream<T> underlying)
+  {
+    var h = underlying.head();
 
-    return true;
+    if(h.isNotPresent())
+      return Maybe<T>.nothing;
+
+    return h.filter(streamFilter).isPresent()? h : nextHead(underlying.tail());
+  }
+  //--------------------------------------------------------------------------------------------------------------------
+  private Stream<T> nextTail(Stream<T> underlying)
+  {
+    var h = underlying.head();
+
+    if(h.isNotPresent())
+      return Stream.empty<T>();
+
+    Stream<T> t = underlying.tail();
+    return h.filter(streamFilter).isPresent()? t : nextTail(t);
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override Maybe<uint> fastCount()
   {
-    return Maybe.of((uint)(rangeEndExclusive - rangeStartInclusive));
-  }
-  //--------------------------------------------------------------------------------------------------------------------
-  public override Maybe<int> last()
-  {
-    return fastCount().filter(i => i > 0).map(i => rangeEndExclusive - 1);
-  }
-  //--------------------------------------------------------------------------------------------------------------------
-  public override Maybe<int> head()
-  {
-    return fastCount().filter(i => i > 0).map(i => rangeStartInclusive);
-  }
-  //--------------------------------------------------------------------------------------------------------------------
-  public override Stream<int> tail()
-  {
-    return fastCount()
-      .filter(i => i > 1)
-      .flatMap(i => (Stream<int>) new IntStream(rangeStartInclusive + 1, rangeEndExclusive));
-  }
-  //--------------------------------------------------------------------------------------------------------------------
-  public override Stream<int> snapshot()
-  {
-    return this;
+    return Maybe<uint>.nothing;
   }
   //--------------------------------------------------------------------------------------------------------------------
 }

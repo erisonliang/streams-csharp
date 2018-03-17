@@ -1,58 +1,46 @@
 ﻿//======================================================================================================================
-namespace hhlogic.streams.implementation {
+namespace hhlogic.streams.internals {
 //----------------------------------------------------------------------------------------------------------------------
 using System;
 //======================================================================================================================
 
 
 //======================================================================================================================
-public sealed class LimitStream<T> : AbstractStream<T>
+public sealed class PrependStream<T> : AbstractStream<T>
 {
   //--------------------------------------------------------------------------------------------------------------------
-  private readonly Stream<T> underlyingStream;
-  private readonly uint limitSize;
+  private readonly T value;
+  private readonly Stream<T> next;
   //--------------------------------------------------------------------------------------------------------------------
-  public LimitStream(Stream<T> underlyingStream, uint limitSize)
+  public PrependStream(T value, Stream<T> next)
   {
-    this.underlyingStream = underlyingStream;
-    this.limitSize = limitSize;
+    this.value = value;
+    this.next = next;
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override bool forEachWhile(Predicate<T> f)
   {
-    uint i = 0u;
-
-    underlyingStream.forEachWhile(t =>
-    {
-      if(i >= limitSize || !f(t))
-        return false;
-
-      i++;
-      return true;
-    });
-
-    return i >= limitSize;
+    return f(value)? next.forEachWhile(f) : false;
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override Maybe<uint> fastCount()
   {
-    return underlyingStream.fastCount().map(i => limitSize < i? limitSize : i);
+    return next.fastCount().map(i => i + 1);
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override Maybe<T> last()
   {
-    return reduce(Maybe<T>.nothing, (m, i) => Maybe.of(i));
+    return next.last().orElseOf(value);
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override Maybe<T> head()
   {
-    return limitSize > 0? underlyingStream.head() : Maybe<T>.nothing;
+    return Maybe.of(value);
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override Stream<T> tail()
   {
-    return limitSize > 1u?
-      new LimitStream<T>(underlyingStream.tail(), limitSize - 1) as Stream<T> : EmptyStream<T>.instance;
+    return next;
   }
   //--------------------------------------------------------------------------------------------------------------------
 }

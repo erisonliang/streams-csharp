@@ -1,49 +1,46 @@
 ﻿//======================================================================================================================
-namespace hhlogic.streams.implementation {
+namespace hhlogic.streams.internals {
 //----------------------------------------------------------------------------------------------------------------------
 using System;
 //======================================================================================================================
 
 
 //======================================================================================================================
-public sealed class SingletonStream<T> : AbstractStream<T>
+public sealed class MapStream<U, T> : AbstractStream<T>
 {
   //--------------------------------------------------------------------------------------------------------------------
-  private readonly T value;
+  private readonly Stream<U> underlyingStream;
+  private readonly Func<U, T> mapper;
   //--------------------------------------------------------------------------------------------------------------------
-  public SingletonStream(T value)
+  public MapStream(Stream<U> underlyingStream, Func<U, T> mapper)
   {
-    this.value = value;
+    this.underlyingStream = underlyingStream;
+    this.mapper = mapper;
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override bool forEachWhile(Predicate<T> f)
   {
-    return f(value);
+    return underlyingStream.forEachWhile(m => f(mapper(m)));
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override Maybe<uint> fastCount()
   {
-    return Maybe.of(1u);
+    return underlyingStream.fastCount();
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override Maybe<T> last()
   {
-    return Maybe.of(value);
+    return underlyingStream.last().map(mapper);
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override Maybe<T> head()
   {
-    return Maybe.of(value);
+    return underlyingStream.head().map(mapper);
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override Stream<T> tail()
   {
-    return EmptyStream<T>.instance;
-  }
-  //--------------------------------------------------------------------------------------------------------------------
-  public override Stream<T> snapshot()
-  {
-    return this;
+    return new MapStream<U, T>(underlyingStream.tail(), mapper);
   }
   //--------------------------------------------------------------------------------------------------------------------
 }

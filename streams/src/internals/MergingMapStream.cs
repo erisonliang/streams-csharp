@@ -1,57 +1,64 @@
 ﻿//======================================================================================================================
-namespace hhlogic.streams.implementation {
+namespace hhlogic.streams.internals {
 //----------------------------------------------------------------------------------------------------------------------
 using System;
 //======================================================================================================================
 
 
 //======================================================================================================================
-public sealed class UintStream : AbstractStream<uint>
+public sealed class MergingMapStream<U, T> : AbstractFilterStream<T>
 {
   //--------------------------------------------------------------------------------------------------------------------
-  private readonly uint rangeStartInclusive;
-  private readonly uint rangeEndExclusive;
+  private readonly Stream<U> underlyingStream;
+  private readonly uint mergeSize;
+  private readonly Func<U[], T> mapper;
   //--------------------------------------------------------------------------------------------------------------------
-  public UintStream(uint rangeStartInclusive, uint rangeEndExclusive)
+  public MergingMapStream(Stream<U> underlyingStream, uint mergeSize, Func<U[], T> mapper)
   {
-    this.rangeStartInclusive = rangeStartInclusive < rangeEndExclusive? rangeStartInclusive : rangeEndExclusive;
-    this.rangeEndExclusive = rangeEndExclusive;
+    this.underlyingStream = underlyingStream;
+    this.mapper = mapper;
+    this.mergeSize = mergeSize;
   }
   //--------------------------------------------------------------------------------------------------------------------
-  public override bool forEachWhile(Predicate<uint> f)
+  public override bool forEachWhile(Predicate<T> f)
   {
-    for(uint i = rangeStartInclusive; i < rangeEndExclusive; i++)
-      if(!f(i))
-        return false;
+    if(mergeSize < 1u)
+      return true;
 
-    return true;
+    var values = new U[mergeSize];
+    uint i = 0u;
+
+    return underlyingStream.forEachWhile(m =>
+    {
+      values[i++] = m;
+
+      if(i < mergeSize)
+        return true;
+
+      i = 0;
+      return f(mapper(values));
+    });
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override Maybe<uint> fastCount()
   {
-    return Maybe.of(rangeEndExclusive - rangeStartInclusive);
+    return underlyingStream.fastCount().map(i => i/mergeSize);
   }
   //--------------------------------------------------------------------------------------------------------------------
-  public override Maybe<uint> last()
+  public override Maybe<T> head()
   {
-    return fastCount().filter(i => i > 0).map(i => rangeEndExclusive - 1);
+    var values = underlyingStream.limit(mergeSize).toArray();
+    return values.Length == mergeSize? Maybe.of(mapper(values)) : Maybe<T>.nothing;
   }
   //--------------------------------------------------------------------------------------------------------------------
-  public override Maybe<uint> head()
+  public override Stream<T> tail()
   {
-    return fastCount().filter(i => i > 0).map(i => rangeStartInclusive);
+    return next(mergeSize, underlyingStream.tail());
   }
   //--------------------------------------------------------------------------------------------------------------------
-  public override Stream<uint> tail()
+  private Stream<T> next(uint i, Stream<U> underlying)
   {
-    return fastCount()
-      .filter(i => i > 0)
-      .flatMap(i => (Stream<uint>) new UintStream(rangeStartInclusive + 1, rangeEndExclusive));
-  }
-  //--------------------------------------------------------------------------------------------------------------------
-  public override Stream<uint> snapshot()
-  {
-    return this;
+    return i > 1u? next(i - 1, underlying.tail()) : new MergingMapStream<U, T>(underlying, mergeSize, mapper);
   }
   //--------------------------------------------------------------------------------------------------------------------
 }

@@ -1,59 +1,55 @@
 ﻿//======================================================================================================================
-namespace hhlogic.streams.implementation {
+namespace hhlogic.streams.internals {
 //----------------------------------------------------------------------------------------------------------------------
 using System;
 //======================================================================================================================
 
 
 //======================================================================================================================
-public sealed class SupplierStream<T> : AbstractFilterStream<T>
+public sealed class ArrayStream<T> : AbstractStream<T>
 {
   //--------------------------------------------------------------------------------------------------------------------
-  private Func<Maybe<T>> supplier;
-  private Maybe<T> _head;
-  private SupplierStream<T> _tail = null;
-  private bool initialized = false;
+  private readonly T[] array;
+  private readonly uint startIndex;
   //--------------------------------------------------------------------------------------------------------------------
-  public SupplierStream(Func<Maybe<T>> supplier)
+  public ArrayStream(T[] array, uint startIndex)
   {
-    this.supplier = supplier;
+    this.array = array;
+    this.startIndex = startIndex;
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override bool forEachWhile(Predicate<T> f)
   {
-    init();
+    for(uint i = startIndex; i < array.Length; i++)
+      if(array[i] != null && !f(array[i]))
+        return false;
 
-    return _head
-      .filter(v => f(v))
-      .map(v => _tail.forEachWhile(f))
-      .get(() => _head.isNotPresent());
-  }
-  //--------------------------------------------------------------------------------------------------------------------
-  public override Maybe<T> head()
-  {
-    init();
-    return _head;
-  }
-  //--------------------------------------------------------------------------------------------------------------------
-  public override Stream<T> tail()
-  {
-    init();
-    return _tail;
+    return true;
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override Maybe<uint> fastCount()
   {
-    return Maybe<uint>.nothing;
+    return Maybe.of((uint)(array.Length - startIndex));
   }
   //--------------------------------------------------------------------------------------------------------------------
-  private void init()
+  public override Maybe<T> last()
   {
-    if(initialized)
-      return;
-
-    initialized = true;
-    _head = supplier();
-    _tail = new SupplierStream<T>(supplier);
+    return fastCount().filter(i => i > 0).map(i => array[array.Length - 1]);
+  }
+  //--------------------------------------------------------------------------------------------------------------------
+  public override Maybe<T> head()
+  {
+    return fastCount().filter(i => i > 0).map(i => array[startIndex]);
+  }
+  //--------------------------------------------------------------------------------------------------------------------
+  public override Stream<T> tail()
+  {
+    return fastCount().filter(i => i > 1).flatMap(i => new ArrayStream<T>(array, startIndex + 1));
+  }
+  //--------------------------------------------------------------------------------------------------------------------
+  public override Stream<T> snapshot()
+  {
+    return this;
   }
   //--------------------------------------------------------------------------------------------------------------------
 }

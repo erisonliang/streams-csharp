@@ -1,27 +1,27 @@
 ﻿//======================================================================================================================
-namespace hhlogic.streams.implementation {
+namespace hhlogic.streams.internals {
 //----------------------------------------------------------------------------------------------------------------------
 using System;
 //======================================================================================================================
 
 
 //======================================================================================================================
-public sealed class ArrayStream<T> : AbstractStream<T>
+public sealed class IntStream : AbstractStream<int>
 {
   //--------------------------------------------------------------------------------------------------------------------
-  private readonly T[] array;
-  private readonly uint startIndex;
+  private readonly int rangeStartInclusive;
+  private readonly int rangeEndExclusive;
   //--------------------------------------------------------------------------------------------------------------------
-  public ArrayStream(T[] array, uint startIndex)
+  public IntStream(int rangeStartInclusive, int rangeEndExclusive)
   {
-    this.array = array;
-    this.startIndex = startIndex;
+    this.rangeStartInclusive = rangeStartInclusive < rangeEndExclusive? rangeStartInclusive : rangeEndExclusive;
+    this.rangeEndExclusive = rangeEndExclusive;
   }
   //--------------------------------------------------------------------------------------------------------------------
-  public override bool forEachWhile(Predicate<T> f)
+  public override bool forEachWhile(Predicate<int> f)
   {
-    for(uint i = startIndex; i < array.Length; i++)
-      if(array[i] != null && !f(array[i]))
+    for(int i = rangeStartInclusive; i < rangeEndExclusive; i++)
+      if(!f(i))
         return false;
 
     return true;
@@ -29,25 +29,27 @@ public sealed class ArrayStream<T> : AbstractStream<T>
   //--------------------------------------------------------------------------------------------------------------------
   public override Maybe<uint> fastCount()
   {
-    return Maybe.of((uint)(array.Length - startIndex));
+    return Maybe.of((uint)(rangeEndExclusive - rangeStartInclusive));
   }
   //--------------------------------------------------------------------------------------------------------------------
-  public override Maybe<T> last()
+  public override Maybe<int> last()
   {
-    return fastCount().filter(i => i > 0).map(i => array[array.Length - 1]);
+    return fastCount().filter(i => i > 0).map(i => rangeEndExclusive - 1);
   }
   //--------------------------------------------------------------------------------------------------------------------
-  public override Maybe<T> head()
+  public override Maybe<int> head()
   {
-    return fastCount().filter(i => i > 0).map(i => array[startIndex]);
+    return fastCount().filter(i => i > 0).map(i => rangeStartInclusive);
   }
   //--------------------------------------------------------------------------------------------------------------------
-  public override Stream<T> tail()
+  public override Stream<int> tail()
   {
-    return fastCount().filter(i => i > 1).flatMap(i => new ArrayStream<T>(array, startIndex + 1));
+    return fastCount()
+      .filter(i => i > 1)
+      .flatMap(i => (Stream<int>) new IntStream(rangeStartInclusive + 1, rangeEndExclusive));
   }
   //--------------------------------------------------------------------------------------------------------------------
-  public override Stream<T> snapshot()
+  public override Stream<int> snapshot()
   {
     return this;
   }

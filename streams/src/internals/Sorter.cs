@@ -1,58 +1,25 @@
 ﻿//======================================================================================================================
-namespace hhlogic.streams.implementation {
+namespace hhlogic.streams.internals {
 //----------------------------------------------------------------------------------------------------------------------
 using System;
+using System.Collections.Generic;
 //======================================================================================================================
 
 
 //======================================================================================================================
-public sealed class IteratorStream<T> : AbstractFilterStream<T>
+public sealed class Sorter<T> : IComparer<T>
 {
   //--------------------------------------------------------------------------------------------------------------------
-  private Predicate<Predicate<T>> supplier;
-  private uint skipCount;
+  private Func<T, T, int> func;
   //--------------------------------------------------------------------------------------------------------------------
-  public IteratorStream(Predicate<Predicate<T>> supplier, uint skip)
+  public Sorter(Func<T, T, int> f)
   {
-    this.supplier = supplier;
-    this.skipCount = skip;
+    this.func = f;
   }
   //--------------------------------------------------------------------------------------------------------------------
-  public override bool forEachWhile(Predicate<T> f)
+  public int Compare(T a, T b)
   {
-    uint i = 0u;
-
-    return supplier(v =>
-    {
-      if(i >= skipCount)
-        return f(v);
-
-      i++;
-      return true;
-    });
-  }
-  //--------------------------------------------------------------------------------------------------------------------
-  public override Maybe<T> head()
-  {
-    Maybe<T> value = Maybe<T>.nothing;
-
-    forEachWhile(v =>
-    {
-      value = Maybe.of(v);
-      return false;
-    });
-
-    return value;
-  }
-  //--------------------------------------------------------------------------------------------------------------------
-  public override Stream<T> tail()
-  {
-    return new IteratorStream<T>(supplier, skipCount + 1);
-  }
-  //--------------------------------------------------------------------------------------------------------------------
-  public override Maybe<uint> fastCount()
-  {
-    return Maybe<uint>.nothing;
+    return func(a, b);
   }
   //--------------------------------------------------------------------------------------------------------------------
 }

@@ -1,62 +1,58 @@
 ﻿//======================================================================================================================
-namespace hhlogic.streams.implementation {
+namespace hhlogic.streams.internals {
 //----------------------------------------------------------------------------------------------------------------------
 using System;
 //======================================================================================================================
 
 
 //======================================================================================================================
-public sealed class SkipStream<T> : AbstractStream<T>
+public sealed class IteratorStream<T> : AbstractFilterStream<T>
 {
   //--------------------------------------------------------------------------------------------------------------------
-  private readonly Stream<T> underlyingStream;
-  private readonly uint skipCount;
+  private Predicate<Predicate<T>> supplier;
+  private uint skipCount;
   //--------------------------------------------------------------------------------------------------------------------
-  public SkipStream(Stream<T> underlyingStream, uint skipCount = 1)
+  public IteratorStream(Predicate<Predicate<T>> supplier, uint skip)
   {
-    this.underlyingStream = underlyingStream;
-    this.skipCount = skipCount;
+    this.supplier = supplier;
+    this.skipCount = skip;
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override bool forEachWhile(Predicate<T> f)
   {
-    var skip = skipCount;
+    uint i = 0u;
 
-    return underlyingStream.forEachWhile(i =>
+    return supplier(v =>
     {
-      if(skip > 0)
-      {
-        skip--;
-        return true;
-      }
+      if(i >= skipCount)
+        return f(v);
 
-      return f(i);
+      i++;
+      return true;
     });
-  }
-  //--------------------------------------------------------------------------------------------------------------------
-  public override Maybe<uint> fastCount()
-  {
-    return underlyingStream.fastCount().map(i => i > skipCount? i - skipCount : 0);
-  }
-  //--------------------------------------------------------------------------------------------------------------------
-  public override Maybe<T> last()
-  {
-    return next(skipCount, underlyingStream).last();
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override Maybe<T> head()
   {
-    return next(skipCount, underlyingStream).head();
+    Maybe<T> value = Maybe<T>.nothing;
+
+    forEachWhile(v =>
+    {
+      value = Maybe.of(v);
+      return false;
+    });
+
+    return value;
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override Stream<T> tail()
   {
-    return next(skipCount, underlyingStream).tail();
+    return new IteratorStream<T>(supplier, skipCount + 1);
   }
   //--------------------------------------------------------------------------------------------------------------------
-  private static Stream<T> next(uint skip, Stream<T> underlying)
+  public override Maybe<uint> fastCount()
   {
-    return skip < 1u? underlying : next(skip - 1u, underlying.tail());
+    return Maybe<uint>.nothing;
   }
   //--------------------------------------------------------------------------------------------------------------------
 }

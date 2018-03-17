@@ -1,46 +1,59 @@
 ﻿//======================================================================================================================
-namespace hhlogic.streams.implementation {
+namespace hhlogic.streams.internals {
 //----------------------------------------------------------------------------------------------------------------------
 using System;
 //======================================================================================================================
 
 
 //======================================================================================================================
-public sealed class MapStream<U, T> : AbstractStream<T>
+public sealed class SupplierStream<T> : AbstractFilterStream<T>
 {
   //--------------------------------------------------------------------------------------------------------------------
-  private readonly Stream<U> underlyingStream;
-  private readonly Func<U, T> mapper;
+  private Func<Maybe<T>> supplier;
+  private Maybe<T> _head;
+  private SupplierStream<T> _tail = null;
+  private bool initialized = false;
   //--------------------------------------------------------------------------------------------------------------------
-  public MapStream(Stream<U> underlyingStream, Func<U, T> mapper)
+  public SupplierStream(Func<Maybe<T>> supplier)
   {
-    this.underlyingStream = underlyingStream;
-    this.mapper = mapper;
+    this.supplier = supplier;
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override bool forEachWhile(Predicate<T> f)
   {
-    return underlyingStream.forEachWhile(m => f(mapper(m)));
-  }
-  //--------------------------------------------------------------------------------------------------------------------
-  public override Maybe<uint> fastCount()
-  {
-    return underlyingStream.fastCount();
-  }
-  //--------------------------------------------------------------------------------------------------------------------
-  public override Maybe<T> last()
-  {
-    return underlyingStream.last().map(mapper);
+    init();
+
+    return _head
+      .filter(v => f(v))
+      .map(v => _tail.forEachWhile(f))
+      .get(() => _head.isNotPresent());
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override Maybe<T> head()
   {
-    return underlyingStream.head().map(mapper);
+    init();
+    return _head;
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override Stream<T> tail()
   {
-    return new MapStream<U, T>(underlyingStream.tail(), mapper);
+    init();
+    return _tail;
+  }
+  //--------------------------------------------------------------------------------------------------------------------
+  public override Maybe<uint> fastCount()
+  {
+    return Maybe<uint>.nothing;
+  }
+  //--------------------------------------------------------------------------------------------------------------------
+  private void init()
+  {
+    if(initialized)
+      return;
+
+    initialized = true;
+    _head = supplier();
+    _tail = new SupplierStream<T>(supplier);
   }
   //--------------------------------------------------------------------------------------------------------------------
 }

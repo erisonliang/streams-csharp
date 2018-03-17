@@ -1,75 +1,58 @@
 ﻿//======================================================================================================================
-namespace hhlogic.streams.implementation {
+namespace hhlogic.streams.internals {
 //----------------------------------------------------------------------------------------------------------------------
 using System;
 //======================================================================================================================
 
 
 //======================================================================================================================
-public sealed class FlatMapStream<U, T> : AbstractStream<T>
+public sealed class LimitStream<T> : AbstractStream<T>
 {
   //--------------------------------------------------------------------------------------------------------------------
-  private readonly Stream<U> underlyingStream;
-  private readonly Stream<T> headStream;
-  private readonly Func<U, Stream<T>> mapper;
+  private readonly Stream<T> underlyingStream;
+  private readonly uint limitSize;
   //--------------------------------------------------------------------------------------------------------------------
-  public FlatMapStream(Stream<U> underlyingStream, Func<U, Stream<T>> mapper)
+  public LimitStream(Stream<T> underlyingStream, uint limitSize)
   {
     this.underlyingStream = underlyingStream;
-    this.headStream = EmptyStream<T>.instance;
-    this.mapper = mapper;
-  }
-  //--------------------------------------------------------------------------------------------------------------------
-  public FlatMapStream(Stream<T> headStream, Stream<U> underlyingStream, Func<U, Stream<T>> mapper)
-  {
-    this.underlyingStream = underlyingStream;
-    this.headStream = headStream;
-    this.mapper = mapper;
+    this.limitSize = limitSize;
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override bool forEachWhile(Predicate<T> f)
   {
-    return headStream.forEachWhile(f) && underlyingStream.forEachWhile(m => mapper(m).forEachWhile(f));
-  }
-  //--------------------------------------------------------------------------------------------------------------------
-  public override uint count()
-  {
-    return headStream.count() + underlyingStream.reduce(0u, (sum, m) => sum + mapper(m).count());
+    uint i = 0u;
+
+    underlyingStream.forEachWhile(t =>
+    {
+      if(i >= limitSize || !f(t))
+        return false;
+
+      i++;
+      return true;
+    });
+
+    return i >= limitSize;
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override Maybe<uint> fastCount()
   {
-    return Maybe<uint>.nothing;
+    return underlyingStream.fastCount().map(i => limitSize < i? limitSize : i);
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override Maybe<T> last()
   {
-    var l = underlyingStream.last().flatMap(mapper).last();
-    return l.isPresent()? l : headStream.last();
+    return reduce(Maybe<T>.nothing, (m, i) => Maybe.of(i));
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override Maybe<T> head()
   {
-    return next(headStream, underlyingStream).headStream.head();
+    return limitSize > 0? underlyingStream.head() : Maybe<T>.nothing;
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override Stream<T> tail()
   {
-    var n = next(headStream, underlyingStream);
-    return next(n.headStream.tail(), n.underlyingStream);
-  }
-  //--------------------------------------------------------------------------------------------------------------------
-  private FlatMapStream<U, T> next(Stream<T> headStream, Stream<U> underlying)
-  {
-    var h = headStream.head();
-
-    if(h.isPresent())
-      return new FlatMapStream<U, T>(headStream, underlying, mapper);
-
-    var uh = underlying.head();
-
-    return uh.isNotPresent()? new FlatMapStream<U, T>(EmptyStream<T>.instance, EmptyStream<U>.instance, mapper)
-        : next(uh.flatMap(mapper), underlying.tail());
+    return limitSize > 1u?
+      new LimitStream<T>(underlyingStream.tail(), limitSize - 1) as Stream<T> : EmptyStream<T>.instance;
   }
   //--------------------------------------------------------------------------------------------------------------------
 }
