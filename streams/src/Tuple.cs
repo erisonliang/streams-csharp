@@ -50,7 +50,7 @@ public static class Tuple
   // = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
   public class Double<A, T> : Single<A>, Tuple<A, T>
   {
-    private readonly T value;
+    private new readonly T value;
     public Double(A a, T value) : base(a) {this.value = value;}
     public T second {get {return value;}}
     public new Tuple<A, T, U> append<U>(U u) {return Tuple.of(first, value, u);}
@@ -58,7 +58,7 @@ public static class Tuple
   // = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
   public class Triple<A, B, T> : Double<A, B>, Tuple<A, B, T>
   {
-    private readonly T value;
+    private new readonly T value;
     public Triple(A a, B b, T value) : base(a, b) {this.value = value;}
     public T third {get {return value;}}
     public new Tuple<A, B, T, U> append<U>(U u) {return Tuple.of(first, second, value, u);}
@@ -66,7 +66,7 @@ public static class Tuple
   // = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
   public class Quadruple<A, B, C, T> : Triple<A, B, C>, Tuple<A, B, C, T>
   {
-    private readonly T value;
+    private new readonly T value;
     public Quadruple(A a, B b, C c, T value) : base(a, b, c) {this.value = value;}
     public T forth {get {return value;}}
   }
