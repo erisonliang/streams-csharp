@@ -17,6 +17,13 @@ public interface Tuple<A, B, C, D> : Tuple<A, B, C> {D forth {get;}}
 public static class Tuple
 {
   //--------------------------------------------------------------------------------------------------------------------
+  // Build a tuple containing one value.
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  public static Tuple<A> of<A>(A a)
+  {
+    return new Single<A>(a);
+  }
+  //--------------------------------------------------------------------------------------------------------------------
   // Build a tuple containing two values.
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   public static Tuple<A, B> of<A, B>(A a, B b)

@@ -42,7 +42,7 @@ public sealed class MergingMapStream<U, T> : AbstractFilterStream<T>
   //--------------------------------------------------------------------------------------------------------------------
   public override Maybe<uint> fastCount()
   {
-    return underlyingStream.fastCount().map(i => i/mergeSize);
+    return underlyingStream.fastCount().map(i => mergeSize > 0u? i/mergeSize : 0u);
   }
   //--------------------------------------------------------------------------------------------------------------------
   public override Maybe<T> head()

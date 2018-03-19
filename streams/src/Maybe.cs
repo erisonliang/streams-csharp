@@ -62,7 +62,6 @@ public static class Maybe
 public struct Maybe<T>
 {
   //--------------------------------------------------------------------------------------------------------------------
-  public static readonly Func<Maybe<T>, Maybe<T>> identity = m => m;
   public static readonly Maybe<T> nothing;
   //--------------------------------------------------------------------------------------------------------------------
   private bool present;
