@@ -76,8 +76,8 @@ public interface Stream<T>
   // Return a stream containing all the elements of this stream in random order.
   Stream<T> shuffle();
 
-  // Return a stream containing all the elements of this stream in random order using the given random number generator.
-  Stream<T> shuffle(Random random);
+  // Return a stream containing all the elements of this stream in random order using the given random seed.
+  Stream<T> shuffle(int seed);
 
   // Return a stream containing all the unique elements in this stream.
   Stream<T> distinct();

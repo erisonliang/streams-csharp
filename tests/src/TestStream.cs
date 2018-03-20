@@ -185,7 +185,7 @@ public class TestStream
     Assert.IsTrue(Stream.empty<string>().reverse().isEmpty());
     Assert.IsTrue(Stream.empty<int>().sort((a, b) => a < b? -1 : 1).isEmpty());
     Assert.IsTrue(Stream.empty<string>().shuffle().isEmpty());
-    Assert.IsTrue(Stream.empty<string>().shuffle(new Random()).isEmpty());
+    Assert.IsTrue(Stream.empty<string>().shuffle(1234).isEmpty());
     Assert.IsTrue(Stream.empty<string>().distinct().isEmpty());
     Assert.IsFalse(Stream.empty<string>().first().isPresent());
     Assert.IsFalse(Stream.empty<string>().head().isPresent());
@@ -944,7 +944,12 @@ public class TestStream
   [TestMethod]
   public void testReverse()
   {
-    CollectionAssert.AreEqual(new string[]{"e", "d", "c", "b", "a"}, Stream.of("a", "b", "c", "d", "e").reverse().toArray());
+    var s = Stream.of("a", "b", "c", "d", "e").reverse();
+    CollectionAssert.AreEqual(new string[]{"e", "d", "c", "b", "a"}, s.toArray());
+    CollectionAssert.AreEqual(new string[]{"e", "d", "c", "b", "a"}, s.snapshot().toArray());
+    Assert.AreEqual("e", s.head().get("none"));
+    Assert.AreEqual("a", s.last().get("none"));
+    Assert.AreEqual("d", s.tail().head().get("none"));
   }
   //--------------------------------------------------------------------------------------------------------------------
   [TestMethod]
@@ -1018,15 +1023,45 @@ public class TestStream
   {
     var s = Stream.of('e', 'b', 'f', 'a').sort((a, b) => a < b? -1 : 1);
     CollectionAssert.AreEqual(new char[]{'a', 'b', 'e', 'f'}, s.toArray());
+    CollectionAssert.AreEqual(new char[]{'a', 'b', 'e', 'f'}, s.snapshot().toArray());
+    Assert.AreEqual('a', s.head().get('_'));
+    Assert.AreEqual('f', s.last().get('_'));
+    Assert.AreEqual('b', s.tail().head().get('_'));
   }
   //--------------------------------------------------------------------------------------------------------------------
   [TestMethod]
   public void testShuffle()
   {
-    var s = Stream.of('a', 'b', 'e', 'f');
-    var arry1 = s.shuffle().toArray();
-    CollectionAssert.AreNotEqual(new char[]{'a', 'b', 'e', 'f'}, arry1);
-    CollectionAssert.AreEqual(new char[]{'a', 'b', 'e', 'f'}, Stream.of(arry1).sort((a, b) => a < b? -1 : 1).toArray());
+    var expected = new char[]{'a', 'b', 'e', 'f'};
+
+    {
+      var s = Stream.of('a', 'b', 'e', 'f').shuffle();
+      var arry1 = s.toArray();
+      var arry2 = s.toArray();
+      CollectionAssert.AreNotEqual(new char[]{'a', 'b', 'e', 'f'}, arry1);
+      CollectionAssert.AreNotEqual(new char[]{'a', 'b', 'e', 'f'}, arry2);
+      CollectionAssert.AreEqual(arry1, arry2);
+      CollectionAssert.AreEqual(arry1, s.snapshot().toArray());
+      CollectionAssert.AreEqual(expected, Stream.of(arry1).sort((a, b) => a < b? -1 : 1).toArray());
+      CollectionAssert.AreEqual(expected, Stream.of(arry2).sort((a, b) => a < b? -1 : 1).toArray());
+      Assert.AreEqual(s.head().get('_'), s.head().get('_'));
+      Assert.AreEqual(s.last().get('_'), s.last().get('_'));
+      Assert.AreEqual(s.tail().head().get('_'), s.tail().head().get('_'));
+    }
+    {
+      var s = Stream.of('a', 'b', 'e', 'f');
+      var arry1 = s.shuffle(937291).toArray();
+      var arry2 = s.shuffle(937291).toArray();
+      CollectionAssert.AreNotEqual(new char[]{'a', 'b', 'e', 'f'}, arry1);
+      CollectionAssert.AreNotEqual(new char[]{'a', 'b', 'e', 'f'}, arry2);
+      CollectionAssert.AreEqual(arry1, arry2);
+      CollectionAssert.AreEqual(arry1, s.shuffle(937291).snapshot().toArray());
+      CollectionAssert.AreEqual(expected, Stream.of(arry1).sort((a, b) => a < b? -1 : 1).toArray());
+      CollectionAssert.AreEqual(expected, Stream.of(arry2).sort((a, b) => a < b? -1 : 1).toArray());
+      Assert.AreEqual(s.head().get('_'), s.head().get('_'));
+      Assert.AreEqual(s.last().get('_'), s.last().get('_'));
+      Assert.AreEqual(s.tail().head().get('_'), s.tail().head().get('_'));
+    }
   }
   //--------------------------------------------------------------------------------------------------------------------
   [TestMethod]

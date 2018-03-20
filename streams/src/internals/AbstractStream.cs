@@ -197,38 +197,48 @@ public abstract class AbstractStream<T> : Stream<T>
   //--------------------------------------------------------------------------------------------------------------------
   public Stream<T> reverse()
   {
-    var array = toArray();
-    Array.Reverse(array);
-    return of(array);
+    return new ReorderStream<T>(this, s =>
+    {
+      var array = toArray();
+      Array.Reverse(array);
+      return of(array);
+    });
   }
   //--------------------------------------------------------------------------------------------------------------------
   public Stream<T> sort(Func<T, T, int> f)
   {
-    var array = toArray();
-    Array.Sort(array, new Sorter<T>(f));
-    return Stream.of(array);
+    return new ReorderStream<T>(this, s =>
+    {
+      var array = toArray();
+      Array.Sort(array, new Sorter<T>(f));
+      return Stream.of(array);
+    });
   }
   //--------------------------------------------------------------------------------------------------------------------
   public Stream<T> shuffle()
   {
-    return shuffle(new Random());
+    return shuffle(new Random().Next());
   }
   //--------------------------------------------------------------------------------------------------------------------
-  public Stream<T> shuffle(Random random)
+  public Stream<T> shuffle(int seed)
   {
-    var list = new List<T>(toArray());
+    return new ReorderStream<T>(this, s =>
+    {
+      var random = new Random(seed);
+      var list = new List<T>(toArray());
 
-    var shuffled = Stream.ofRange(0, list.Count)
-      .map(i => random.Next(0, list.Count))
-      .map(r =>
-      {
-        var v = list[r];
-        list.RemoveAt(r);
-        return v;
-      })
-      .toArray();
+      var shuffled = Stream.ofRange(0, list.Count)
+        .map(i => random.Next(0, list.Count))
+        .map(r =>
+        {
+          var v = list[r];
+          list.RemoveAt(r);
+          return v;
+        })
+        .toArray();
 
-    return new ArrayStream<T>(shuffled, 0u);
+      return new ArrayStream<T>(shuffled, 0u);
+    });
   }
   //--------------------------------------------------------------------------------------------------------------------
   public Stream<T> distinct()
