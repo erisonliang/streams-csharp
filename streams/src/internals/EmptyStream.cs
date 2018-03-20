@@ -104,7 +104,7 @@ public sealed class EmptyStream<T> : Stream<T>
     return this;
   }
   //--------------------------------------------------------------------------------------------------------------------
-  public Stream<T> shuffle(Random random)
+  public Stream<T> shuffle(int seed)
   {
     return this;
   }
