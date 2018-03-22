@@ -28,3 +28,10 @@ var pediatricPatientsByLastName = Stream.of(allPatients)
   .sort((a, b) => a.lastName.CompareTo(b.lastName))
   .toArray();
 ```
+
+```
+var randomCard = Stream.of(sortedDeckOfCards)
+  .shuffle()
+  .first();
+```
+      
