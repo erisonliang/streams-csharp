@@ -14,10 +14,17 @@ var numberOfOfficersWithTenYearsService = Stream.of(allDepartments)
 var sumOfEvenNumbersLessThanOneHundred = Stream.ofRange(1, 100)
   .filter(i => i % 2 == 0)
   .reduce((a, b) => a + b);
-  ```
-  
-  ```
-  var lowerCaseAlpha = Stream.ofRange(0, 26)
-    .map(i => 'a' + i)
-    .toArray();
+```
+
+```
+var lowerCaseAlpha = Stream.ofRange(0, 26)
+  .map(i => 'a' + i)
+  .toArray();
+```
+
+```
+var pediatricPatientsByLastName = Stream.of(allPatients)
+  .filter(p => p.age < 19)
+  .sort((a, b) => a.lastName.CompareTo(b.lastName))
+  .toArray();
 ```
